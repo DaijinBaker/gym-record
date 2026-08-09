@@ -3,10 +3,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, Radius } from '../../src/constants/theme';
+import { WEIGHT_UNIT } from '../../src/constants/units';
 import { useRoutineStore } from '../../src/store/routineStore';
 import { Exercise } from '../../src/types';
-
-const WEIGHT_UNIT = 'kg';
 
 function formatRest(seconds: number): string {
   if (seconds === 0) return 'No rest';
@@ -16,7 +15,7 @@ function formatRest(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function ExerciseRow({ exercise, index, weightUnit }: { exercise: Exercise; index: number; weightUnit: string }) {
+function ExerciseRow({ exercise, index }: { exercise: Exercise; index: number }) {
   return (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -26,7 +25,7 @@ function ExerciseRow({ exercise, index, weightUnit }: { exercise: Exercise; inde
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{exercise.weight}</Text>
-          <Text style={styles.statLabel}>{weightUnit}</Text>
+          <Text style={styles.statLabel}>{WEIGHT_UNIT}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.stat}>
@@ -44,6 +43,9 @@ function ExerciseRow({ exercise, index, weightUnit }: { exercise: Exercise; inde
           <Text style={styles.statLabel}>rest</Text>
         </View>
       </View>
+      {exercise.notes ? (
+        <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
+      ) : null}
     </View>
   );
 }
@@ -115,7 +117,6 @@ export default function RoutineDetailScreen() {
             key={exercise.id}
             exercise={exercise}
             index={index}
-            weightUnit={WEIGHT_UNIT}
           />
         ))}
       </ScrollView>
@@ -193,6 +194,12 @@ const styles = StyleSheet.create({
   statValue: { color: Colors.text, fontWeight: '700', fontSize: FontSize.lg },
   statLabel: { color: Colors.textMuted, fontSize: FontSize.xs, marginTop: 2 },
   statDivider: { width: 1, height: 30, backgroundColor: Colors.border },
+  exerciseNotes: {
+    color: Colors.textSecondary,
+    fontSize: FontSize.sm,
+    marginTop: Spacing.sm,
+    fontStyle: 'italic',
+  },
   notFoundState: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   notFoundText: { color: Colors.textSecondary, fontSize: FontSize.md },
 });

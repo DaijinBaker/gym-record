@@ -5,15 +5,9 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@react-navigation/bottom-tabs": "^7.17.1",
-    "@react-navigation/native": "^7.3.0",
-    "@react-navigation/native-stack": "^7.17.1",
-    "drizzle-kit": "^0.31.10",
-    "drizzle-orm": "^0.45.2",
-    "expo": "~56.0.9",
+    "expo": "~56.0.19",
     "expo-linking": "~56.0.13",
     "expo-router": "~56.2.9",
-    "expo-sqlite": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
     "react-hook-form": "^7.78.0",
@@ -22,6 +16,7 @@
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
+    "react-native-worklets": "0.8.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -31,7 +26,7 @@
   "scripts": {
     "start": "expo start",
     "android": "node scripts/android.js",
-    "ios": "expo start --ios",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true

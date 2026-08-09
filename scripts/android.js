@@ -103,7 +103,7 @@ async function main() {
 
   // Launch Expo targeting Android
   console.log('📱  Launching Expo...\n');
-  const expo = spawn('cmd', ['/c', 'npx', 'expo', 'start', '--android'], {
+  const expo = spawn('cmd', ['/c', 'npx', 'expo', 'start', '--android', '--clear'], {
     stdio: 'inherit',
     shell: false,
   });

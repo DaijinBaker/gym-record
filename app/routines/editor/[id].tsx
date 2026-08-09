@@ -12,13 +12,15 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { useRoutineStore } from '../../../src/store/routineStore';
+import { useCategoryStore } from '../../../src/store/categoryStore';
 import { Colors, FontSize, Spacing, Radius } from '../../../src/constants/theme';
+import { WEIGHT_UNIT } from '../../../src/constants/units';
 import { generateId } from '../../../src/utils/id';
+import { ActionSheet } from '../../../src/components/common/ActionSheet';
 import { Routine, Exercise } from '../../../src/types';
-
-const WEIGHT_UNIT = 'kg';
 
 type ExerciseForm = {
   name: string;
@@ -26,6 +28,7 @@ type ExerciseForm = {
   sets: string;
   reps: string;
   restTimeSeconds: string;
+  notes: string;
 };
 
 type FormValues = {
@@ -34,7 +37,7 @@ type FormValues = {
 };
 
 function emptyExercise(): ExerciseForm {
-  return { name: '', weight: '', sets: '3', reps: '10', restTimeSeconds: '90' };
+  return { name: '', weight: '', sets: '3', reps: '10', restTimeSeconds: '90', notes: '' };
 }
 
 export default function RoutineEditorScreen() {
@@ -42,7 +45,14 @@ export default function RoutineEditorScreen() {
   const router = useRouter();
   const isNew = id === 'new';
   const { routines, upsertRoutine } = useRoutineStore();
+  const { categories } = useCategoryStore();
   const existing = isNew ? null : routines.find((r) => r.id === id);
+  const topLevelCategories = categories.filter((c) => !c.parentId);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(
+    existing?.categoryId
+  );
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   const {
     control,
@@ -58,6 +68,7 @@ export default function RoutineEditorScreen() {
           sets: String(e.sets),
           reps: String(e.reps),
           restTimeSeconds: String(e.restTimeSeconds),
+          notes: e.notes ?? '',
         })) ?? [emptyExercise()],
     },
   });
@@ -69,19 +80,28 @@ export default function RoutineEditorScreen() {
     if (!name) return;
 
     const now = new Date().toISOString();
-    const exercises: Exercise[] = values.exercises.map((e) => ({
-      id: generateId(),
-      name: e.name.trim() || 'Untitled Exercise',
-      weight: parseFloat(e.weight) || 0,
-      sets: parseInt(e.sets, 10) || 1,
-      reps: parseInt(e.reps, 10) || 1,
-      restTimeSeconds: parseInt(e.restTimeSeconds, 10) || 0,
-    }));
+    const exercises: Exercise[] = values.exercises
+      .filter((e) => e.name.trim() !== '')
+      .map((e) => ({
+        id: generateId(),
+        name: e.name.trim(),
+        weight: parseFloat(e.weight) || 0,
+        sets: parseInt(e.sets, 10) || 1,
+        reps: parseInt(e.reps, 10) || 1,
+        restTimeSeconds: parseInt(e.restTimeSeconds, 10) || 0,
+        notes: e.notes.trim() || undefined,
+      }));
+
+    if (exercises.length === 0) {
+      Alert.alert('No exercises', 'Add at least one named exercise before saving.');
+      return;
+    }
 
     const routine: Routine = {
       id: isNew ? generateId() : (id as string),
       name,
       exercises,
+      categoryId: selectedCategoryId,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -105,7 +125,7 @@ export default function RoutineEditorScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -144,7 +164,52 @@ export default function RoutineEditorScreen() {
             <Text style={styles.errorText}>Routine name is required</Text>
           )}
 
-          {/* Exercise cards */}
+          {/* Category picker */}
+          <Text style={[styles.fieldLabel, { marginTop: Spacing.lg }]}>Category</Text>
+          <TouchableOpacity
+            style={styles.categoryPicker}
+            onPress={() => setShowCategoryPicker(true)}
+          >
+            <Ionicons name="folder-outline" size={18} color={Colors.textSecondary} />
+            <Text style={[
+              styles.categoryPickerText,
+              !selectedCategoryId && styles.categoryPickerPlaceholder,
+            ]}>
+              {selectedCategoryId
+                ? (categories.find((c) => c.id === selectedCategoryId)?.name ?? 'Unknown')
+                : 'No category'}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={Colors.textMuted} />
+          </TouchableOpacity>
+
+          {/* Category picker */}
+          <ActionSheet
+            visible={showCategoryPicker}
+            title="Select Category"
+            onClose={() => setShowCategoryPicker(false)}
+            options={[
+              {
+                label: 'No category',
+                icon: 'close-circle-outline',
+                onPress: () => setSelectedCategoryId(undefined),
+              },
+              ...topLevelCategories.flatMap((cat) => [
+                {
+                  label: cat.name,
+                  icon: 'folder-outline' as const,
+                  onPress: () => setSelectedCategoryId(cat.id),
+                },
+                ...categories
+                  .filter((c) => c.parentId === cat.id)
+                  .map((sub) => ({
+                    label: sub.name,
+                    icon: 'return-down-forward-outline' as const,
+                    indent: true,
+                    onPress: () => setSelectedCategoryId(sub.id),
+                  })),
+              ]),
+            ]}
+          />
           <Text style={[styles.fieldLabel, { marginTop: Spacing.xl }]}>Exercises</Text>
           {fields.map((field, index) => (
             <View key={field.id} style={styles.exerciseCard}>
@@ -253,6 +318,23 @@ export default function RoutineEditorScreen() {
                   />
                 </View>
               </View>
+
+              {/* Notes */}
+              <Controller
+                control={control}
+                name={`exercises.${index}.notes`}
+                render={({ field: { onChange, value } }) => (
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Notes (optional)"
+                    placeholderTextColor={Colors.textMuted}
+                    value={value}
+                    onChangeText={onChange}
+                    returnKeyType="done"
+                    multiline
+                  />
+                )}
+              />
             </View>
           ))}
 
@@ -361,6 +443,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  notesInput: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: Spacing.sm,
+    color: Colors.text,
+    fontSize: FontSize.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginTop: Spacing.sm,
+    minHeight: 38,
+  },
   addExerciseBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -374,5 +468,18 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   addExerciseText: { color: Colors.primary, fontWeight: '600', fontSize: FontSize.md },
+  categoryPicker: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  categoryPickerText: { flex: 1, color: Colors.text, fontSize: FontSize.md },
+  categoryPickerPlaceholder: { color: Colors.textMuted },
 });
 
