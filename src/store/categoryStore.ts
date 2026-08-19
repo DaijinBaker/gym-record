@@ -8,6 +8,7 @@ interface CategoryState {
   categories: Category[];
   load: () => Promise<void>;
   addCategory: (name: string, parentId?: string) => Promise<void>;
+  renameCategory: (id: string, name: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   setCategoryParent: (id: string, parentId: string | undefined) => Promise<void>;
   moveCategoryUp: (id: string) => Promise<void>;
@@ -28,6 +29,13 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     const updated = [...get().categories, category];
+    set({ categories: updated });
+    await saveCategories(updated);
+  },
+  renameCategory: async (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const updated = get().categories.map((c) => (c.id === id ? { ...c, name: trimmed } : c));
     set({ categories: updated });
     await saveCategories(updated);
   },

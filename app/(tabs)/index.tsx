@@ -8,7 +8,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -248,15 +248,23 @@ function CategoryFolder({
 function AddCategoryModal({
   visible,
   title,
+  initialValue,
+  confirmLabel = 'Add',
   onClose,
   onAdd,
 }: {
   visible: boolean;
   title: string;
+  initialValue?: string;
+  confirmLabel?: string;
   onClose: () => void;
   onAdd: (name: string) => void;
 }) {
   const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (visible) setName(initialValue ?? '');
+  }, [visible, initialValue]);
 
   function handleAdd() {
     const trimmed = name.trim();
@@ -286,7 +294,7 @@ function AddCategoryModal({
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalConfirm} onPress={handleAdd}>
-              <Text style={styles.modalConfirmText}>Add</Text>
+              <Text style={styles.modalConfirmText}>{confirmLabel}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -302,6 +310,7 @@ export default function RoutinesScreen() {
   const {
     categories,
     addCategory,
+    renameCategory,
     deleteCategory,
     moveCategoryUp,
     moveCategoryDown,
@@ -312,6 +321,7 @@ export default function RoutinesScreen() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [addSubcategoryFor, setAddSubcategoryFor] = useState<Category | null>(null);
+  const [renameCategoryFor, setRenameCategoryFor] = useState<Category | null>(null);
   const [routineMenuFor, setRoutineMenuFor] = useState<Routine | null>(null);
   const [categoryMenuFor, setCategoryMenuFor] = useState<Category | null>(null);
   const [movePickerFor, setMovePickerFor] = useState<Routine | null>(null);
@@ -358,7 +368,13 @@ export default function RoutinesScreen() {
   function getCategoryMenuOptions(category: Category): ActionSheetOption[] {
     const hasChildren = categories.some((c) => c.parentId === category.id);
     const eligibleParents = topLevelCategories.filter((c) => c.id !== category.id);
-    const options: ActionSheetOption[] = [];
+    const options: ActionSheetOption[] = [
+      {
+        label: 'Edit Name',
+        icon: 'create-outline',
+        onPress: () => setRenameCategoryFor(category),
+      },
+    ];
 
     if (!category.parentId) {
       options.push({
@@ -508,6 +524,15 @@ export default function RoutinesScreen() {
         title={`New Subcategory${addSubcategoryFor ? ` in "${addSubcategoryFor.name}"` : ''}`}
         onClose={() => setAddSubcategoryFor(null)}
         onAdd={(name) => addSubcategoryFor && addCategory(name, addSubcategoryFor.id)}
+      />
+
+      <AddCategoryModal
+        visible={!!renameCategoryFor}
+        title="Rename Category"
+        initialValue={renameCategoryFor?.name}
+        confirmLabel="Save"
+        onClose={() => setRenameCategoryFor(null)}
+        onAdd={(name) => renameCategoryFor && renameCategory(renameCategoryFor.id, name)}
       />
 
       <ActionSheet
