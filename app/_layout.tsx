@@ -5,15 +5,18 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useRoutineStore } from '../src/store/routineStore';
 import { useCategoryStore } from '../src/store/categoryStore';
+import { useSessionStore } from '../src/store/sessionStore';
 import { Colors } from '../src/constants/theme';
 
 export default function RootLayout() {
   const loadRoutines = useRoutineStore((s) => s.load);
   const loadCategories = useCategoryStore((s) => s.load);
+  const loadSessions = useSessionStore((s) => s.load);
 
   useEffect(() => {
     loadRoutines();
     loadCategories();
+    loadSessions();
   }, []);
 
   return (

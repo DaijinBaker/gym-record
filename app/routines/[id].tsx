@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontSize, Spacing, Radius } from '../../src/constants/theme';
 import { WEIGHT_UNIT } from '../../src/constants/units';
 import { useRoutineStore } from '../../src/store/routineStore';
+import { useSessionStore, findLastLoggedSet, findInProgressSession } from '../../src/store/sessionStore';
 import { Exercise } from '../../src/types';
+import { formatDate } from '../../src/utils/format';
 
 function formatRest(seconds: number): string {
   if (seconds === 0) return 'No rest';
@@ -15,7 +17,15 @@ function formatRest(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function ExerciseRow({ exercise, index }: { exercise: Exercise; index: number }) {
+function ExerciseRow({
+  exercise,
+  index,
+  lastLogged,
+}: {
+  exercise: Exercise;
+  index: number;
+  lastLogged: { weight: number; reps: number; date: string } | null;
+}) {
   return (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -43,6 +53,11 @@ function ExerciseRow({ exercise, index }: { exercise: Exercise; index: number })
           <Text style={styles.statLabel}>rest</Text>
         </View>
       </View>
+      {lastLogged && (
+        <Text style={styles.lastLoggedText}>
+          Last: {lastLogged.weight}{WEIGHT_UNIT} × {lastLogged.reps} ({formatDate(lastLogged.date)})
+        </Text>
+      )}
       {exercise.notes ? (
         <Text style={styles.exerciseNotes}>{exercise.notes}</Text>
       ) : null}
@@ -54,6 +69,7 @@ export default function RoutineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { routines, deleteRoutine } = useRoutineStore();
+  const { sessions, startSession } = useSessionStore();
   const routine = routines.find((r) => r.id === id);
 
   if (!routine) {
@@ -67,6 +83,17 @@ export default function RoutineDetailScreen() {
         </View>
       </SafeAreaView>
     );
+  }
+
+  const inProgressSession = findInProgressSession(sessions, routine.id);
+
+  async function handleStartWorkout() {
+    if (inProgressSession) {
+      router.push(`/session/${inProgressSession.id}`);
+      return;
+    }
+    const session = await startSession(routine!);
+    router.push(`/session/${session.id}`);
   }
 
   function handleDelete() {
@@ -107,6 +134,17 @@ export default function RoutineDetailScreen() {
         </View>
       </View>
 
+      <TouchableOpacity style={styles.startBtn} onPress={handleStartWorkout} activeOpacity={0.85}>
+        <Ionicons
+          name={inProgressSession ? 'play-forward' : 'play'}
+          size={18}
+          color={Colors.white}
+        />
+        <Text style={styles.startBtnText}>
+          {inProgressSession ? 'Resume Workout' : 'Start Workout'}
+        </Text>
+      </TouchableOpacity>
+
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.exerciseCount}>
           {routine.exercises.length} exercise{routine.exercises.length !== 1 ? 's' : ''}
@@ -117,6 +155,7 @@ export default function RoutineDetailScreen() {
             key={exercise.id}
             exercise={exercise}
             index={index}
+            lastLogged={findLastLoggedSet(sessions, exercise.name)}
           />
         ))}
       </ScrollView>
@@ -143,6 +182,24 @@ const styles = StyleSheet.create({
   },
   headerActions: { flexDirection: 'row', gap: Spacing.md, alignItems: 'center' },
   backBtn: { padding: Spacing.xs },
+  startBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.md,
+  },
+  startBtnText: { color: Colors.white, fontWeight: '700', fontSize: FontSize.md },
+  lastLoggedText: {
+    color: Colors.primaryLight,
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    marginTop: Spacing.sm,
+  },
   scroll: { padding: Spacing.md },
   exerciseCount: {
     color: Colors.textMuted,
